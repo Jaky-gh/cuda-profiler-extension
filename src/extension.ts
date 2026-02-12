@@ -1,26 +1,61 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
-import * as vscode from 'vscode';
+import * as vscode from "vscode";
+import { ProfilerViewProvider } from "./ui/viewProvider";
+import { runNsysAndExportCsv } from "./nsys/runner";
+import { parseNsysKernelCsv } from "./nsys/parseCsv";
+import { ProfileReport } from "./model/types";
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
+  console.log('Extension "cuda-profiler" activated');
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "cuda-profiler" is now active!');
+  const viewProvider = new ProfilerViewProvider(context);
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(ProfilerViewProvider.viewType, viewProvider)
+  );
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	const disposable = vscode.commands.registerCommand('cuda-profiler.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from cuda-profiler!');
-	});
+  context.subscriptions.push(
+    vscode.commands.registerCommand("cudaProfiler.openPanel", async () => {
+      await vscode.commands.executeCommand("workbench.view.extension.cudaProfilerContainer");
+    })
+  );
 
-	context.subscriptions.push(disposable);
+  context.subscriptions.push(
+    vscode.commands.registerCommand("cudaProfiler.runNsys", async () => {
+      try {
+        await vscode.commands.executeCommand("cudaProfiler.openPanel");
+
+        await vscode.window.withProgress(
+          {
+            location: vscode.ProgressLocation.Notification,
+            title: "CUDA Profiler: Running Nsight Systems…",
+            cancellable: false
+          },
+          async () => {
+            const { csvPath, meta } = await runNsysAndExportCsv();
+
+            const kernels = parseNsysKernelCsv(csvPath);
+
+            const report: ProfileReport = {
+              tool: "nsys",
+              command: meta.command,
+              cwd: meta.cwd,
+              generatedAt: Date.now(),
+              kernels
+            };
+
+            viewProvider.setReport(report);
+
+            if (kernels.length === 0) {
+              vscode.window.showWarningMessage(
+                "Nsight Systems ran, but no kernel rows were parsed from the CSV. Your nsys version may output a different CSV table — we’ll adjust parsing next."
+              );
+            }
+          }
+        );
+      } catch (e: any) {
+        vscode.window.showErrorMessage(e?.message ?? String(e));
+      }
+    })
+  );
 }
 
-// This method is called when your extension is deactivated
 export function deactivate() {}

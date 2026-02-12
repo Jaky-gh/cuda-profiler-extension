@@ -6,19 +6,70 @@
   "engines": {
     "vscode": "^1.109.0"
   },
-  "categories": [
-    "Other"
+  "categories": ["Other"],
+
+  "activationEvents": [
+    "onCommand:cudaProfiler.runNsys",
+    "onCommand:cudaProfiler.openPanel"
   ],
-  "activationEvents": [],
+
   "main": "./dist/extension.js",
+
   "contributes": {
     "commands": [
       {
-        "command": "cuda-profiler.helloWorld",
-        "title": "Hello World"
+        "command": "cudaProfiler.runNsys",
+        "title": "CUDA Profiler: Run Nsight Systems (Kernel Summary)"
+      },
+      {
+        "command": "cudaProfiler.openPanel",
+        "title": "CUDA Profiler: Open Panel"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "CUDA Profiler",
+      "properties": {
+        "cudaProfiler.command": {
+          "type": "string",
+          "default": "",
+          "description": "Command to run your CUDA app (e.g. .\\\\build\\\\app.exe --arg 1)."
+        },
+        "cudaProfiler.cwd": {
+          "type": "string",
+          "default": "${workspaceFolder}",
+          "description": "Working directory for the run command."
+        },
+        "cudaProfiler.outputDir": {
+          "type": "string",
+          "default": ".vscode/cuda-profiler",
+          "description": "Output folder for profiler reports."
+        },
+        "cudaProfiler.nsysPath": {
+          "type": "string",
+          "default": "",
+          "description": "Optional full path to nsys.exe."
+        }
+      }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "cudaProfilerContainer",
+          "title": "CUDA Profiler",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "cudaProfilerContainer": [
+        {
+          "id": "cudaProfilerView",
+          "name": "Kernel Summary"
+        }
+      ]
+    }
   },
+
   "scripts": {
     "vscode:prepublish": "npm run package",
     "compile": "webpack",
@@ -30,6 +81,7 @@
     "lint": "eslint src",
     "test": "vscode-test"
   },
+
   "devDependencies": {
     "@types/vscode": "^1.109.0",
     "@types/mocha": "^10.0.10",
