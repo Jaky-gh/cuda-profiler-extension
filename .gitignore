@@ -1,5 +1,79 @@
-out
-dist
-node_modules
+# =========================
+# Node / VSCode Extension
+# =========================
+node_modules/
+dist/
+out/
 .vscode-test/
 *.vsix
+
+# =========================
+# VS Code local settings
+# =========================
+.vscode/
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+
+# =========================
+# Build folders
+# =========================
+build/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+compile_commands.json
+Makefile
+
+# =========================
+# CUDA / C++ artifacts
+# =========================
+*.o
+*.obj
+*.lo
+*.la
+*.a
+*.lib
+*.so
+*.dll
+*.dylib
+*.exe
+*.out
+*.app
+
+# CUDA intermediate
+*.cubin
+*.ptx
+*.fatbin
+
+# =========================
+# MSVC / Visual Studio
+# =========================
+*.pdb
+*.ilk
+*.idb
+*.exp
+*.sln
+*.vcxproj.user
+*.vcxproj.filters
+
+# =========================
+# Profiling / Nsight / CUDA
+# =========================
+*.qdrep
+*.nsys-rep
+*.nvvp
+*.log
+
+# =========================
+# OS junk
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Logs & temp
+# =========================
+*.log
+*.tmp
+*.cache
