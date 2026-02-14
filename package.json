@@ -9,6 +9,7 @@
   "categories": ["Other"],
 
   "activationEvents": [
+    "onView:cudaProfilerView",
     "onCommand:cudaProfiler.runNsys",
     "onCommand:cudaProfiler.openPanel"
   ],
@@ -63,8 +64,10 @@
     "views": {
       "cudaProfilerContainer": [
         {
+          "type": "webview",
           "id": "cudaProfilerView",
-          "name": "Kernel Summary"
+          "name": "Kernel Summary",
+          "icon": "media/icon.svg"
         }
       ]
     }

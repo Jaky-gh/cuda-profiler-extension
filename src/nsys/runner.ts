@@ -12,12 +12,15 @@ function execSpawn(exe: string, args: string[], cwd: string): Promise<void> {
     const p = spawn(exe, args, { cwd, windowsHide: true });
 
     let stderr = "";
+    let stdout = "";
+
+    p.stdout.on("data", (d) => (stdout += d.toString()));
     p.stderr.on("data", (d) => (stderr += d.toString()));
 
     p.on("error", reject);
     p.on("close", (code) => {
       if (code === 0) resolve();
-      else reject(new Error(`${exe} failed (code ${code}). ${stderr}`));
+      else reject(new Error(`${exe} failed (code ${code}).\n${stdout}\n${stderr}`));
     });
   });
 }
@@ -36,6 +39,7 @@ export async function runNsysAndExportCsv(): Promise<{
   const wf = await getWorkspaceFolder();
   const cfg = vscode.workspace.getConfiguration("cudaProfiler");
 
+  // ---------- config ----------
   const command = (cfg.get<string>("command") ?? "").trim();
   if (!command) throw new Error("Set cudaProfiler.command in Settings.");
 
@@ -49,32 +53,94 @@ export async function runNsysAndExportCsv(): Promise<{
   const nsysPathCfg = (cfg.get<string>("nsysPath") ?? "").trim();
   const nsysExe = nsysPathCfg || "nsys.exe";
 
+  // ---------- profile run ----------
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   const prefix = path.join(outDir, `nsys-${stamp}`);
 
-  const collectArgs = ["profile", "-o", prefix, "cmd.exe", "/d", "/s", "/c", command];
+  // Compatible trace set for your Nsight version
+  const collectArgs = [
+    "profile",
+    "--trace=cuda,nvtx",
+    "--sample=none",
+    "--cpuctxsw=none",
+    "-o",
+    prefix,
+    "cmd.exe",
+    "/d",
+    "/s",
+    "/c",
+    command
+  ];
+
   await execSpawn(nsysExe, collectArgs, cwd);
 
+  // ---------- locate report ----------
   const possible = [`${prefix}.nsys-rep`, `${prefix}.qdrep`];
   const reportPath = possible.find((p) => fs.existsSync(p));
+
   if (!reportPath) {
     const files = fs.readdirSync(outDir).filter((f) => f.includes(`nsys-${stamp}`));
-    throw new Error(`Nsight Systems report not found for prefix ${prefix}. Files: ${files.join(", ")}`);
+    throw new Error(
+      `Nsight Systems report not found for prefix ${prefix}. Files: ${files.join(", ")}`
+    );
   }
 
+  // ---------- export CSV via stats (new syntax) ----------
   const statsOutPrefix = `${prefix}-stats`;
-  const statsArgs = ["stats", "--export=csv", "-o", statsOutPrefix, reportPath];
+
+  const statsArgs = [
+    "stats",
+    "--report",
+    "cuda_gpu_kern_sum",
+    "--format",
+    "csv",
+    "-o",
+    statsOutPrefix,
+    reportPath
+  ];
+
   await execSpawn(nsysExe, statsArgs, cwd);
 
+  // ---------- find produced CSV ----------
   const csvCandidates = fs
     .readdirSync(outDir)
-    .filter((f) => f.startsWith(path.basename(statsOutPrefix)) && f.toLowerCase().endsWith(".csv"))
+    .filter(
+      (f) =>
+        f.startsWith(path.basename(statsOutPrefix)) &&
+        f.toLowerCase().endsWith(".csv")
+    )
     .map((f) => path.join(outDir, f));
 
-  if (csvCandidates.length === 0) throw new Error("No CSV produced by `nsys stats --export=csv`.");
+  if (csvCandidates.length === 0) {
+    // fallback: newest CSV in output dir
+    const allCsv = fs
+      .readdirSync(outDir)
+      .filter((f) => f.toLowerCase().endsWith(".csv"))
+      .map((f) => path.join(outDir, f))
+      .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
 
-  const preferred = csvCandidates.find((p) => p.toLowerCase().includes("cuda") && p.toLowerCase().includes("kern"));
+    if (allCsv.length === 0) {
+      throw new Error("nsys stats produced no CSV files.");
+    }
+
+    return {
+      csvPath: allCsv[0],
+      reportPath,
+      meta: { command, cwd }
+    };
+  }
+
+  const preferred = csvCandidates.find(
+    (p) =>
+      p.toLowerCase().includes("cuda") &&
+      p.toLowerCase().includes("kern")
+  );
+
   const csvPath = preferred || csvCandidates[0];
 
-  return { csvPath, reportPath, meta: { command, cwd } };
+  return {
+    csvPath,
+    reportPath,
+    meta: { command, cwd }
+  };
 }

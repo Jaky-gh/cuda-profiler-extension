@@ -1,85 +1,114 @@
 import * as fs from "fs";
-import { KernelRow } from "../model/types";
 
+export type KernelRow = {
+  name: string;
+  calls?: number;
+  totalMs?: number;
+  avgMs?: number;
+};
+
+function nsToMs(ns: number): number {
+  return ns / 1_000_000; // 1e6 ns = 1 ms
+}
+
+/**
+ * Parses Nsight Systems "cuda_gpu_kern_sum" CSV:
+ * Time (%),Total Time (ns),Instances,Avg (ns),...,Name
+ */
+export function parseNsysKernelCsv(csvPath: string): KernelRow[] {
+  const raw = fs.readFileSync(csvPath, "utf8");
+  const lines = raw
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+
+  if (lines.length < 2) return [];
+
+  const header = parseCsvLine(lines[0]);
+  const idxName = findIndex(header, "Name");
+  const idxTotal = findIndex(header, "Total Time (ns)");
+  const idxAvg = findIndex(header, "Avg (ns)");
+  const idxInstances = findIndex(header, "Instances");
+
+  if (idxName === -1) return [];
+
+  const out: KernelRow[] = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const cols = parseCsvLine(lines[i]);
+    const name = (cols[idxName] ?? "").trim();
+    if (!name) continue;
+
+    const totalNs = idxTotal >= 0 ? toNumber(cols[idxTotal]) : undefined;
+    const avgNs = idxAvg >= 0 ? toNumber(cols[idxAvg]) : undefined;
+    const calls = idxInstances >= 0 ? toInt(cols[idxInstances]) : undefined;
+
+    out.push({
+      name: stripOuterQuotes(name),
+      calls,
+      totalMs: totalNs === undefined ? undefined : nsToMs(totalNs),
+      avgMs: avgNs === undefined ? undefined : nsToMs(avgNs)
+    });
+  }
+
+  return out;
+}
+
+function findIndex(header: string[], colName: string): number {
+  const target = colName.toLowerCase();
+  return header.findIndex((h) => stripOuterQuotes(h).trim().toLowerCase() === target);
+}
+
+function toNumber(s: string | undefined): number | undefined {
+  if (s === undefined) return undefined;
+  const v = Number(stripOuterQuotes(s).trim());
+  return Number.isFinite(v) ? v : undefined;
+}
+
+function toInt(s: string | undefined): number | undefined {
+  const n = toNumber(s);
+  return n === undefined ? undefined : Math.trunc(n);
+}
+
+function stripOuterQuotes(s: string): string {
+  const t = s.trim();
+  if (t.length >= 2 && t.startsWith('"') && t.endsWith('"')) {
+    return t.slice(1, -1).replace(/""/g, '"');
+  }
+  return t;
+}
+
+/**
+ * Minimal CSV line parser supporting quoted fields and commas inside quotes.
+ */
 function parseCsvLine(line: string): string[] {
-  const out: string[] = [];
+  const result: string[] = [];
   let cur = "";
   let inQuotes = false;
 
   for (let i = 0; i < line.length; i++) {
     const ch = line[i];
+
     if (ch === '"') {
-      if (inQuotes && line[i + 1] === '"') {
+      const next = line[i + 1];
+      if (inQuotes && next === '"') {
         cur += '"';
         i++;
       } else {
         inQuotes = !inQuotes;
       }
-    } else if (ch === "," && !inQuotes) {
-      out.push(cur);
+      continue;
+    }
+
+    if (ch === "," && !inQuotes) {
+      result.push(cur);
       cur = "";
-    } else {
-      cur += ch;
+      continue;
     }
-  }
-  out.push(cur);
-  return out.map((s) => s.trim());
-}
 
-function toMs(value: string): number | undefined {
-  const v = value.trim();
-  const m = v.match(/^([0-9]*\.?[0-9]+)\s*(ns|us|ms|s)?$/i);
-  if (!m) return undefined;
-  const num = Number(m[1]);
-  if (Number.isNaN(num)) return undefined;
-  const unit = (m[2] || "ms").toLowerCase();
-  if (unit === "ns") return num / 1e6;
-  if (unit === "us") return num / 1e3;
-  if (unit === "ms") return num;
-  if (unit === "s") return num * 1000;
-  return num;
-}
-
-export function parseNsysKernelCsv(csvPath: string): KernelRow[] {
-  const text = fs.readFileSync(csvPath, "utf8");
-  const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
-  if (lines.length < 2) return [];
-
-  const header = parseCsvLine(lines[0]).map((h) => h.toLowerCase());
-
-  const col = (variants: string[]) => {
-    for (const v of variants) {
-      const idx = header.indexOf(v.toLowerCase());
-      if (idx >= 0) return idx;
-    }
-    return -1;
-  };
-
-  const nameIdx = col(["name", "kernel name"]);
-  const totalIdx = col(["total time", "total", "time"]);
-  const avgIdx = col(["avg", "average", "avg time"]);
-  const callsIdx = col(["instances", "calls", "count"]);
-
-  if (nameIdx < 0) return [];
-
-  const rows: KernelRow[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    const cells = parseCsvLine(lines[i]);
-    const name = cells[nameIdx]?.trim();
-    if (!name) continue;
-
-    const totalMs = totalIdx >= 0 ? toMs(cells[totalIdx] || "") : undefined;
-    const avgMs = avgIdx >= 0 ? toMs(cells[avgIdx] || "") : undefined;
-    const callsRaw = callsIdx >= 0 ? (cells[callsIdx] || "").replace(/,/g, "") : "";
-    const calls = callsRaw ? Number(callsRaw) : undefined;
-
-    rows.push({
-      name,
-      totalMs,
-      avgMs,
-      calls: Number.isFinite(calls) ? calls : undefined
-    });
+    cur += ch;
   }
 
-  return rows;
+  result.push(cur);
+  return result;
 }

@@ -8,19 +8,26 @@ export function activate(context: vscode.ExtensionContext) {
   console.log('Extension "cuda-profiler" activated');
 
   const viewProvider = new ProfilerViewProvider(context);
+
+  // IMPORTANT: register with the literal view id
   context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider(ProfilerViewProvider.viewType, viewProvider)
+    vscode.window.registerWebviewViewProvider("cudaProfilerView", viewProvider, {
+      webviewOptions: { retainContextWhenHidden: true }
+    })
   );
 
+  // Open the activity bar container (no fancy commands)
   context.subscriptions.push(
     vscode.commands.registerCommand("cudaProfiler.openPanel", async () => {
       await vscode.commands.executeCommand("workbench.view.extension.cudaProfilerContainer");
     })
   );
 
+  // Run nsys + parse CSV + update UI
   context.subscriptions.push(
     vscode.commands.registerCommand("cudaProfiler.runNsys", async () => {
       try {
+        // Ensure the container is visible
         await vscode.commands.executeCommand("cudaProfiler.openPanel");
 
         await vscode.window.withProgress(
@@ -31,7 +38,6 @@ export function activate(context: vscode.ExtensionContext) {
           },
           async () => {
             const { csvPath, meta } = await runNsysAndExportCsv();
-
             const kernels = parseNsysKernelCsv(csvPath);
 
             const report: ProfileReport = {
@@ -46,7 +52,7 @@ export function activate(context: vscode.ExtensionContext) {
 
             if (kernels.length === 0) {
               vscode.window.showWarningMessage(
-                "Nsight Systems ran, but no kernel rows were parsed from the CSV. Your nsys version may output a different CSV table — we’ll adjust parsing next."
+                "Nsight Systems ran, but no kernel rows were parsed from the CSV."
               );
             }
           }
