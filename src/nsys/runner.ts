@@ -42,7 +42,6 @@ async function getWorkspaceFolder(): Promise<vscode.WorkspaceFolder> {
 }
 
 function resolveCwd(cwdSetting: string, workspace: string): string {
-  // allow ${workspaceFolder} and default to workspace if blank
   const s = (cwdSetting ?? "").trim();
   if (!s) return workspace;
   return s.replace(/\$\{workspaceFolder\}/g, workspace);
@@ -58,8 +57,6 @@ function pickNewest(paths: string[]): string | null {
 }
 
 function safeBasename(p: string) {
-  // nsys will create files like `${prefix}.csv` / `${prefix}_something.csv`
-  // we match by basename(prefix) to avoid absolute-path issues on Windows
   return path.basename(p);
 }
 
@@ -94,7 +91,6 @@ export async function runNsysAndExportCsv(): Promise<{
       const stamp = new Date().toISOString().replace(/[:.]/g, "-");
       const prefix = path.join(outDir, `nsys-${stamp}`);
 
-      // Nsight Systems 2026.x compatible trace set (no osrt)
       const collectArgs = [
         "profile",
         "--trace=cuda,nvtx",
@@ -150,8 +146,6 @@ export async function runNsysAndExportCsv(): Promise<{
         .map((f) => path.join(outDir, f))
         .filter((full) => path.basename(full).toLowerCase().startsWith(base));
 
-      // If we found “matching prefix” CSVs, pick the newest of those.
-      // Otherwise, fall back to newest CSV in the folder (helps if nsys changes naming).
       const csvPath =
         pickNewest(csvCandidates) ??
         pickNewest(

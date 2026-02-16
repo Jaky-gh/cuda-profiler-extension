@@ -9,25 +9,58 @@ export function activate(context: vscode.ExtensionContext) {
 
   const viewProvider = new ProfilerViewProvider(context);
 
-  // IMPORTANT: register with the literal view id
+  let lastCsvPath: string | undefined;
+
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider("cudaProfilerView", viewProvider, {
       webviewOptions: { retainContextWhenHidden: true }
     })
   );
 
-  // Open the activity bar container (no fancy commands)
   context.subscriptions.push(
     vscode.commands.registerCommand("cudaProfiler.openPanel", async () => {
       await vscode.commands.executeCommand("workbench.view.extension.cudaProfilerContainer");
     })
   );
 
-  // Run nsys + parse CSV + update UI
+  context.subscriptions.push(
+    vscode.commands.registerCommand("cudaProfiler.reloadLast", async () => {
+      await vscode.commands.executeCommand("cudaProfiler.openPanel");
+
+      if (!lastCsvPath) {
+        vscode.window.showInformationMessage("No previous CSV path. Run Nsight Systems first.");
+        return;
+      }
+
+      try {
+        const kernels = parseNsysKernelCsv(lastCsvPath);
+
+        const cfg = vscode.workspace.getConfiguration("cudaProfiler");
+        const command = (cfg.get<string>("command") ?? "").trim();
+
+        const wf = vscode.workspace.workspaceFolders?.[0];
+        const cwdSetting = cfg.get<string>("cwd") ?? "${workspaceFolder}";
+        const cwd = wf ? cwdSetting.replace("${workspaceFolder}", wf.uri.fsPath) : cwdSetting;
+
+        const report: ProfileReport = {
+          tool: "nsys",
+          command,
+          cwd,
+          generatedAt: Date.now(),
+          kernels
+        };
+
+        viewProvider.setReport(report);
+        viewProvider.refresh();
+      } catch (e: any) {
+        vscode.window.showErrorMessage(e?.message ?? String(e));
+      }
+    })
+  );
+
   context.subscriptions.push(
     vscode.commands.registerCommand("cudaProfiler.runNsys", async () => {
       try {
-        // Ensure the container is visible
         await vscode.commands.executeCommand("cudaProfiler.openPanel");
 
         await vscode.window.withProgress(
@@ -38,6 +71,8 @@ export function activate(context: vscode.ExtensionContext) {
           },
           async () => {
             const { csvPath, meta } = await runNsysAndExportCsv();
+            lastCsvPath = csvPath;
+
             const kernels = parseNsysKernelCsv(csvPath);
 
             const report: ProfileReport = {
@@ -49,6 +84,7 @@ export function activate(context: vscode.ExtensionContext) {
             };
 
             viewProvider.setReport(report);
+            viewProvider.refresh();
 
             if (kernels.length === 0) {
               vscode.window.showWarningMessage(

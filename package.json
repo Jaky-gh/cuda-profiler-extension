@@ -8,12 +8,6 @@
   },
   "categories": ["Other"],
 
-  "activationEvents": [
-    "onView:cudaProfilerView",
-    "onCommand:cudaProfiler.runNsys",
-    "onCommand:cudaProfiler.openPanel"
-  ],
-
   "main": "./dist/extension.js",
 
   "contributes": {
@@ -25,6 +19,10 @@
       {
         "command": "cudaProfiler.openPanel",
         "title": "CUDA Profiler: Open Panel"
+      },
+      { 
+        "command": "cudaProfiler.reloadLast", 
+        "title": "CUDA Profiler: Reload Last CSV" 
       }
     ],
     "configuration": {
