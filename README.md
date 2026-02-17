@@ -15,6 +15,7 @@ This extension is designed to simplify the profiling workflow for CUDA developer
 - Display profiling results in a custom VS Code panel
 - Configurable executable and profiler paths
 - Designed for CUDA + CMake based projects
+- Refresh the view without re-running profiling
 
 ---
 
@@ -28,19 +29,25 @@ This extension is designed to simplify the profiling workflow for CUDA developer
 
 ---
 
-## Extension Settings
+# ⚙️ Extension Settings
 
 This extension contributes the following settings:
 
 | Setting | Description |
 |---------|-------------|
-| `cudaProfiler.command` | Path to the CUDA executable to run |
-| `cudaProfiler.nsysPath` | Path to the `nsys` profiler executable |
+| `cudaProfiler.command` | Command used to launch your CUDA app (required) |
+| `cudaProfiler.cwd` | Working directory for the run command |
+| `cudaProfiler.outputDir` | Directory where reports and CSV files are written |
+| `cudaProfiler.nsysPath` | Optional full path to `nsys.exe` |
 
-Example:
+---
+
+## Example Configuration
 
 ```json
 {
-  "cudaProfiler.command": "./build/myapp.exe",
-  "cudaProfiler.nsysPath": "C:\\Program Files\\NVIDIA Corporation\\Nsight Systems\\target-windows-x64\\nsys.exe"
+  "cudaProfiler.command": ".\\build\\myapp.exe",
+  "cudaProfiler.cwd": "${workspaceFolder}",
+  "cudaProfiler.outputDir": ".vscode/cuda-profiler",
+  "cudaProfiler.nsysPath": "C:\\Program Files\\NVIDIA Corporation\\Nsight Systems 2026.1.1\\target-windows-x64\\nsys.exe"
 }
