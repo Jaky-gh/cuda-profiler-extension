@@ -55,7 +55,7 @@
         {
           "id": "cudaProfilerContainer",
           "title": "CUDA Profiler",
-          "icon": "media/icon.svg"
+          "icon": "media/icon.png"
         }
       ]
     },
@@ -65,7 +65,7 @@
           "type": "webview",
           "id": "cudaProfilerView",
           "name": "Kernel Summary",
-          "icon": "media/icon.svg"
+          "icon": "media/icon.png"
         }
       ]
     }

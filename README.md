@@ -51,3 +51,5 @@ This extension contributes the following settings:
   "cudaProfiler.outputDir": ".vscode/cuda-profiler",
   "cudaProfiler.nsysPath": "C:\\Program Files\\NVIDIA Corporation\\Nsight Systems 2026.1.1\\target-windows-x64\\nsys.exe"
 }
+
+Credit: Jonathan for the extension icon
