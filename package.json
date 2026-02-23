@@ -23,6 +23,10 @@
       { 
         "command": "cudaProfiler.reloadLast", 
         "title": "CUDA Profiler: Reload Last CSV" 
+      },
+      {
+        "command": "cuda-profiler.profileNcu",
+        "title": "CUDA Profiler: Profile with Nsight Compute (ncu)"
       }
     ],
     "configuration": {
@@ -47,6 +51,22 @@
           "type": "string",
           "default": "",
           "description": "Optional full path to nsys.exe."
+        },
+        "cudaProfiler.ncuPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to Nsight Compute executable (ncu / ncu.exe). Leave empty to use PATH."
+        },
+        "cudaProfiler.ncuArgs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": ["--set", "default", "--force-overwrite"],
+          "description": "Extra arguments passed to ncu before the -- <exe> portion."
+        },
+        "cudaProfiler.ncuExportName": {
+          "type": "string",
+          "default": "profile",
+          "description": "Base filename for ncu export (without extension)."
         }
       }
     },

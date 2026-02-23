@@ -24,6 +24,12 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand("cuda-profiler.profileNcu", async () => {
+      vscode.window.showInformationMessage("Nsight Compute (ncu) command triggered");
+    })
+  );
+
+  context.subscriptions.push(
     vscode.commands.registerCommand("cudaProfiler.reloadLast", async () => {
       await vscode.commands.executeCommand("cudaProfiler.openPanel");
 
